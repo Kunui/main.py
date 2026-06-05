@@ -18,8 +18,9 @@ jobs:
         python -m pip install --upgrade pip
         pip install feedparser
 
-    - name: 執行程式
+- name: 執行程式
       env:
         SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
         SENDER_PASSWORD: ${{ secrets.SENDER_PASSWORD }}
-      run: python mainV1.py
+      # 告訴 GitHub：先走進 main.py 資料夾，再執行 mainV1.py
+      run: python main.py/mainV1.py
