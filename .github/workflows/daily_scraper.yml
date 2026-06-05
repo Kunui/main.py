@@ -2,7 +2,8 @@ name: Daily Poll News Scraper
 
 on:
   schedule:
-    - cron: '0 23 * * *'
+# 關鍵修改點：23 代表台灣早上7點，2 代表早上10點，6 代表下午2點
+  - cron: '0 23,2,6 * * *'
   workflow_dispatch:
 
 jobs:
