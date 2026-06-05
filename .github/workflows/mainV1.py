@@ -21,6 +21,11 @@ cross_strait_orgs = [
     "國防安全研究院", "聯合報", "TVBS"
 ]
 
+# 3. 兩岸交流論壇清單 (新增)
+forum_keywords = [
+    "雙城論壇", "雙城", "兩湖論壇"
+]
+
 def is_within_48_hours(entry):
     """【時間鐵閘】嚴格檢查新聞發布時間是否在 48 小時之內"""
     try:
@@ -76,6 +81,28 @@ def fetch_and_filter_cross_strait(query, org_list):
             })
     return results
 
+def fetch_and_filter_forums(query, keyword_list):
+    """抓取交流論壇，並限制【標題含論壇關鍵字】且【必須是48小時內】"""
+    url = f"https://news.google.com/rss/search?q={urllib.parse.quote(query + ' when:1d')}&hl=zh-TW&gl=TW&ceid=TW:zh-Hant"
+    feed = feedparser.parse(url)
+    results = []
+    
+    for entry in feed.entries:
+        if not is_within_48_hours(entry):
+            continue
+            
+        title_lower = entry.title.lower()
+        # 只要標題包含我們關注的論壇關鍵字即可
+        has_keyword = any(keyword.lower() in title_lower for keyword in keyword_list)
+        
+        if has_keyword:
+            results.append({
+                "title": entry.title,
+                "link": entry.link,
+                "published": entry.published
+            })
+    return results
+
 def build_queries():
     """建構原始搜尋字串"""
     general_orgs_str = " OR ".join(f'"{org}"' for org in general_orgs)
@@ -84,7 +111,11 @@ def build_queries():
     cross_strait_orgs_str = " OR ".join(f'"{org}"' for org in cross_strait_orgs)
     query_cross_strait = f"({cross_strait_orgs_str}) AND (兩岸關係 OR 兩岸) AND (民調 OR Poll)"
     
-    return query_general, query_cross_strait
+    # 新增論壇搜尋字串
+    forums_str = " OR ".join(f'"{kw}"' for kw in forum_keywords)
+    query_forums = f"({forums_str})"
+    
+    return query_general, query_cross_strait, query_forums
 
 def send_email(html_content):
     """發送 Email 給所有人 (100% 符合 RFC 5321 安全規格版)"""
@@ -122,12 +153,13 @@ def send_email(html_content):
 
 def main():
     print("下人開始實施【時間重重過濾】防噪聲追蹤...")
-    query_general, query_cross_strait = build_queries()
+    query_general, query_cross_strait, query_forums = build_queries()
     
     general_news = fetch_and_filter_general(query_general, general_orgs)
     cross_strait_news = fetch_and_filter_cross_strait(query_cross_strait, cross_strait_orgs)
+    forum_news = fetch_and_filter_forums(query_forums, forum_keywords) # 執行論壇抓取
 
-    html_content = f"<h2>📊 每日民調與兩岸關係精確追蹤報告</h2>"
+    html_content = f"<h2>📊 每日民調、兩岸關係與論壇精確追蹤報告</h2>"
     html_content += f"<p>報告時間：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} (已啟動48小時內時間鐵閘)</p><hr>"
     
     html_content += "<h3>🌐 國際與國內機構民調動態 (48小時內 + 標題必含機構+民調)</h3>"
@@ -147,6 +179,16 @@ def main():
         html_content += "</ul>"
     else:
         html_content += "<p style='color: gray;'>（過去 48 小時內，無符合標準的最新兩岸民調發表）</p>"
+
+    # 新增論壇動態的 HTML 區塊
+    html_content += "<h3>🤝 兩岸交流論壇動態 (48小時內 + 標題必含 雙城論壇 或 兩湖論壇)</h3>"
+    if forum_news:
+        html_content += "<ul>"
+        for news in forum_news:
+            html_content += f"<li><a href='{news['link']}'>{news['title']}</a><br><small>{news['published']}</small></li>"
+        html_content += "</ul>"
+    else:
+        html_content += "<p style='color: gray;'>（過去 48 小時內，無符合標準的最新論壇動態）</p>"
 
     send_email(html_content)
 
