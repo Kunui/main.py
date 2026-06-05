@@ -4,7 +4,11 @@ on:
   schedule:
     # UTC 時間 23:00 等於台灣時間 (UTC+8) 早上 7:00
     - cron: '0 23 * * *'
-  workflow_dispatch: # 允許您在 GitHub 網頁上手動點擊執行測試
+  workflow_dispatch: # 允許手動點擊執行
+
+# 設定全域環境變數，強制啟用 Node.js 24 確保相容性
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   scrape-and-email:
@@ -12,12 +16,10 @@ jobs:
 
     steps:
     - name: 取得程式碼 (Checkout repository)
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4  # 確保使用較新版本
 
     - name: 設定 Python 環境
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
+      uses: actions/setup-python@v5 # 升級至支援 Node.js 24 的 v5 版本
 
     - name: 安裝相依套件
       run: |
@@ -26,7 +28,6 @@ jobs:
 
     - name: 執行爬蟲與寄信
       env:
-        # 從 GitHub Secrets 讀取帳號密碼
         SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
         SENDER_PASSWORD: ${{ secrets.SENDER_PASSWORD }}
       run: python main.py
